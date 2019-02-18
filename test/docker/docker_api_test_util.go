@@ -145,7 +145,7 @@ func terminationBind(t *testing.T) string {
 	// Remove it if it already exists
 	os.Remove(n)
 	// Create the empty file
-	f, err := os.OpenFile(n, os.O_WRONLY|os.O_CREATE, 0600)
+	f, err := os.OpenFile(n, os.O_WRONLY|os.O_CREATE, 0666)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -166,6 +166,8 @@ func expectTerminationMessage(t *testing.T) {
 	m := terminationMessage(t)
 	if m == "" {
 		t.Error("Expected termination message to be set")
+	} else {
+		t.Logf("Termination message: %v\n", m)
 	}
 }
 
