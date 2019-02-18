@@ -1,5 +1,5 @@
 /*
-© Copyright IBM Corporation 2017, 2018
+© Copyright IBM Corporation 2017, 2019
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -41,10 +41,9 @@ func logTerminationf(format string, args ...interface{}) {
 
 func logTermination(args ...interface{}) {
 	msg := fmt.Sprint(args)
-	// Write the message to the termination log.  This is the default place
-	// that Kubernetes will look for termination information.
+	// Write the message to the termination log
 	log.Debugf("Writing termination message: %v", msg)
-	err := ioutil.WriteFile("/dev/termination-log", []byte(msg), 0660)
+	err := ioutil.WriteFile("/run/mqm/termination-log", []byte(msg), 0660)
 	if err != nil {
 		log.Debug(err)
 	}

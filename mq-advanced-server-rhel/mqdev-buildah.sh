@@ -66,9 +66,6 @@ buildah run --user root $ctr_mq -- groupadd --system mqclient
 buildah run --user root $ctr_mq -- useradd --gid mqclient app
 buildah run --user root $ctr_mq -- bash -c "echo admin:passw0rd | chpasswd"
 
-mkdir --parents $mnt_mq/run/runmqdevserver
-chown ${mqm_uid}:${mqm_gid} $mnt_mq/run/runmqdevserver
-
 # Copy runmqdevserver program
 install --mode 0750 --owner ${mqm_uid} --group ${mqm_gid} ./build/runmqdevserver ${mnt_mq}/usr/local/bin/
 

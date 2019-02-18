@@ -56,8 +56,8 @@ RUN chmod u+x /usr/local/bin/install-mq.sh \
   && install-mq.sh
 
 # Create a directory for runtime data from runmqserver
-RUN mkdir -p /run/runmqserver \
-  && chown mqm:mqm /run/runmqserver
+RUN mkdir -p /run/mqm \
+  && chown mqm:mqm /run/mqm
 
 COPY --from=builder /go/src/github.com/ibm-messaging/mq-container/runmqserver /usr/local/bin/
 COPY --from=builder /go/src/github.com/ibm-messaging/mq-container/chkmq* /usr/local/bin/

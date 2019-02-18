@@ -61,8 +61,8 @@ find $mnt_mq/opt/mqm -name '*.tar.gz' -delete
 # Recommended: Set the default MQ installation (makes the MQ commands available on the PATH)
 buildah run $ctr_mq -- /opt/mqm/bin/setmqinst -p /opt/mqm -i
 
-mkdir -p $mnt_mq/run/runmqserver
-chown ${mqm_uid}:${mqm_gid} $mnt_mq/run/runmqserver
+mkdir -p $mnt_mq/run/mqm
+chown ${mqm_uid}:${mqm_gid} $mnt_mq/run/mqm
 
 # Remove the directory structure under /var/mqm which was created by the installer
 rm -rf $mnt_mq/var/mqm

@@ -99,10 +99,9 @@ func logTerminationf(format string, args ...interface{}) {
 // TODO: Duplicated code
 func logTermination(args ...interface{}) {
 	msg := fmt.Sprint(args)
-	// Write the message to the termination log.  This is the default place
-	// that Kubernetes will look for termination information.
+	// Write the message to the termination log
 	log.Debugf("Writing termination message: %v", msg)
-	err := ioutil.WriteFile("/dev/termination-log", []byte(msg), 0660)
+	err := ioutil.WriteFile("/run/mqm/termination-log", []byte(msg), 0660)
 	if err != nil {
 		log.Debug(err)
 	}

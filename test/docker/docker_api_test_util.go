@@ -150,7 +150,7 @@ func terminationBind(t *testing.T) string {
 		t.Fatal(err)
 	}
 	f.Close()
-	return terminationLogOSPath(t) + ":/dev/termination-log"
+	return terminationLogOSPath(t) + ":/run/mqm/termination-log"
 }
 
 // terminationMessage return the termination message, or an empty string if not set

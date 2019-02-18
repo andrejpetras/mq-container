@@ -63,8 +63,8 @@ RUN useradd admin -G mqm \
   && echo admin:$MQ_ADMIN_PASSWORD | chpasswd
 
 # Create a directory for runtime data from runmqserver
-RUN mkdir -p /run/runmqdevserver \
-  && chown mqm:mqm /run/runmqdevserver
+RUN mkdir -p /run/mqm \
+  && chown mqm:mqm /run/mqm
 
 COPY --from=builder /go/src/github.com/ibm-messaging/mq-container/runmqserver /usr/local/bin/
 COPY --from=builder /go/src/github.com/ibm-messaging/mq-container/runmqdevserver /usr/local/bin/
