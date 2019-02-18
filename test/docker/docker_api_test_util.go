@@ -1,5 +1,5 @@
 /*
-© Copyright IBM Corporation 2017, 2018
+© Copyright IBM Corporation 2017, 2019
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -145,12 +145,12 @@ func terminationBind(t *testing.T) string {
 	// Remove it if it already exists
 	os.Remove(n)
 	// Create the empty file
-	f, err := os.OpenFile(n, os.O_WRONLY|os.O_CREATE, 0600)
+	f, err := os.OpenFile(n, os.O_WRONLY|os.O_CREATE, 0666)
 	if err != nil {
 		t.Fatal(err)
 	}
 	f.Close()
-	return terminationLogOSPath(t) + ":/dev/termination-log"
+	return terminationLogOSPath(t) + ":/run/mqm/termination-log"
 }
 
 // terminationMessage return the termination message, or an empty string if not set
@@ -166,6 +166,8 @@ func expectTerminationMessage(t *testing.T) {
 	m := terminationMessage(t)
 	if m == "" {
 		t.Error("Expected termination message to be set")
+	} else {
+		t.Logf("Termination message: %v\n", m)
 	}
 }
 
@@ -212,12 +214,32 @@ func cleanContainer(t *testing.T, cli *client.Client, ID string) {
 	}
 }
 
+// devImage returns true if the specified image is a developer image,
+// determined by use of the MQ_ADMIN_PASSWORD or MQ_APP_PASSWORD
+// environment variables
+func devImage(t *testing.T, cli *client.Client, imageID string) bool {
+	i, _, err := cli.ImageInspectWithRaw(context.Background(), imageID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, e := range i.ContainerConfig.Env {
+		if strings.HasPrefix(e, "MQ_ADMIN_PASSWORD") || strings.HasPrefix(e, "MQ_APP_PASSWORD") {
+			return true
+		}
+	}
+	return false
+}
+
 // runContainerWithPorts creates and starts a container, exposing the specified ports on the host.
 // If no image is specified in the container config, then the image name is retrieved from the TEST_IMAGE
 // environment variable.
 func runContainerWithPorts(t *testing.T, cli *client.Client, containerConfig *container.Config, ports []int) string {
 	if containerConfig.Image == "" {
 		containerConfig.Image = imageName()
+	}
+	// Always run as the "mqm" user, unless the test has specified otherwise
+	if containerConfig.User == "" {
+		containerConfig.User = "mqm"
 	}
 	// if coverage
 	containerConfig.Env = append(containerConfig.Env, "COVERAGE_FILE="+t.Name()+".cov")
@@ -228,6 +250,18 @@ func runContainerWithPorts(t *testing.T, cli *client.Client, containerConfig *co
 			terminationBind(t),
 		},
 		PortBindings: nat.PortMap{},
+		CapDrop: []string{
+			"ALL",
+		},
+	}
+	if devImage(t, cli, containerConfig.Image) {
+		t.Logf("Detected MQ Advanced for Developers image — adding extra Linux capabilities to container")
+		hostConfig.CapAdd = []string{
+			"CHOWN",
+			"SETUID",
+			"SETGID",
+			"AUDIT_WRITE",
+		}
 	}
 	for _, p := range ports {
 		port := nat.Port(fmt.Sprintf("%v/tcp", p))
@@ -254,13 +288,24 @@ func runContainer(t *testing.T, cli *client.Client, containerConfig *container.C
 	return runContainerWithPorts(t, cli, containerConfig, nil)
 }
 
+// runContainerOneShot runs a container with a custom entrypoint, as the root
+// user and with default capabilities
 func runContainerOneShot(t *testing.T, cli *client.Client, command ...string) (int64, string) {
 	containerConfig := container.Config{
 		Entrypoint: command,
+		User:       "root",
+		Image:      imageName(),
 	}
-	id := runContainer(t, cli, &containerConfig)
-	defer cleanContainer(t, cli, id)
-	return waitForContainer(t, cli, id, 10), inspectLogs(t, cli, id)
+	hostConfig := container.HostConfig{}
+	networkingConfig := network.NetworkingConfig{}
+	t.Logf("Running one shot container (%s)", containerConfig.Image)
+	ctr, err := cli.ContainerCreate(context.Background(), &containerConfig, &hostConfig, &networkingConfig, t.Name())
+	if err != nil {
+		t.Fatal(err)
+	}
+	startContainer(t, cli, ctr.ID)
+	defer cleanContainer(t, cli, ctr.ID)
+	return waitForContainer(t, cli, ctr.ID, 10*time.Second), inspectLogs(t, cli, ctr.ID)
 }
 
 func startContainer(t *testing.T, cli *client.Client, ID string) {
@@ -309,18 +354,18 @@ func getCoverageExitCode(t *testing.T, orig int64) int64 {
 }
 
 // waitForContainer waits until a container has exited
-func waitForContainer(t *testing.T, cli *client.Client, ID string, timeout int64) int64 {
-	rc, err := cli.ContainerWait(context.Background(), ID)
-
+func waitForContainer(t *testing.T, cli *client.Client, ID string, timeout time.Duration) int64 {
+	c, cancel := context.WithTimeout(context.Background(), timeout)
+	defer cancel()
+	rc, err := cli.ContainerWait(c, ID)
+	if err != nil {
+		t.Fatal(err)
+	}
 	if coverage() {
 		// COVERAGE: When running coverage, the exit code is written to a file,
 		// to allow the coverage to be generated (which doesn't happen for non-zero
 		// exit codes)
 		rc = getCoverageExitCode(t, rc)
-	}
-
-	if err != nil {
-		t.Fatal(err)
 	}
 	return rc
 }
@@ -395,7 +440,7 @@ func execContainer(t *testing.T, cli *client.Client, ID string, user string, cmd
 }
 
 func waitForReady(t *testing.T, cli *client.Client, ID string) {
-	ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
 	defer cancel()
 
 	for {

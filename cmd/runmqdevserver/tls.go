@@ -1,5 +1,5 @@
 /*
-© Copyright IBM Corporation 2018
+© Copyright IBM Corporation 2018, 2019
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -24,7 +24,7 @@ import (
 )
 
 func configureWebTLS(cms *KeyStore) error {
-	dir := "/run/runmqdevserver/tls"
+	dir := "/run/mqm/tls"
 	ks := NewJKSKeyStore(filepath.Join(dir, "key.jks"), cms.Password)
 	ts := NewJKSKeyStore(filepath.Join(dir, "trust.jks"), cms.Password)
 
@@ -79,7 +79,7 @@ func configureTLS(qmName string, inputFile string, passPhrase string) error {
 	}
 
 	// TODO: Use a persisted file (on the volume) instead?
-	dir := "/run/runmqdevserver/tls"
+	dir := "/run/mqm/tls"
 	keyFile := filepath.Join(dir, "key.kdb")
 
 	_, err = os.Stat(dir)
